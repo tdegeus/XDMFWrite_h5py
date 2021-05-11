@@ -14,4 +14,4 @@ setup(
     packages = find_packages(),
     use_scm_version = {'write_to': 'XDMFWrite_h5py/_version.py'},
     setup_requires = ['setuptools_scm'],
-    install_requires = ['h5py>=2.8.0'])
+    install_requires = ['h5py', 'numpy'])

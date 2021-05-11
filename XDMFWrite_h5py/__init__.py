@@ -1,7 +1,6 @@
 import h5py
-from .detail import *
-
-__version__ = '0.0.1'
+from ._detail import *
+from ._version import *
 
 
 def ElementType():

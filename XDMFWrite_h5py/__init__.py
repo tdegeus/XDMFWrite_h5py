@@ -1,6 +1,25 @@
 import h5py
+import numpy as np
 from ._detail import *
 from ._version import *
+
+
+def as3d(arg):
+    r'''
+Return a list of vectors as a list of vectors in 3d (as required by ParaView).
+
+:param [N, d] arg: Input array (`d <= 3`).
+:return: The array zero-padded such that the shape is ``[N, 3]``
+    '''
+
+    assert arg.ndim == 2
+
+    if arg.shape[1] == 3:
+        return arg
+
+    ret = np.zeros([arg.shape[0], 3], dtype=arg.dtype)
+    ret[:, :arg.shape[1]] = arg
+    return ret
 
 
 def ElementType():

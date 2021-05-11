@@ -232,7 +232,7 @@ Add a time-step given by a combination of fields (e.g. Geometry, Topology, and A
         self.n += 1
 
 
-    def get():
+    def get(self):
         r'''
 Get sequence of strings to be used in an XDMF-file.
 

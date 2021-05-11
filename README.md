@@ -1,5 +1,5 @@
-[![Travis](https://travis-ci.org/tdegeus/XDMFWrite_h5py.svg?branch=master)](https://travis-ci.org/tdegeus/XDMFWrite_h5py)
-[![Appveyor](https://ci.appveyor.com/api/projects/status/4jmkq1om9ijs20jf?svg=true)](https://ci.appveyor.com/project/tdegeus/xdmfwrite-h5py)
+[![CI](https://github.com/tdegeus/XDMFWrite_h5py/workflows/CI/badge.svg)](https://github.com/tdegeus/XDMFWrite_h5py/actions)
+[![readthedocs](https://readthedocs.org/projects/xdmfwrite_h5py/badge/?version=latest)](https://readthedocs.org/projects/xdmfwrite_h5py/badge/?version=latest)
 
 # XDMFWrite_h5py
 

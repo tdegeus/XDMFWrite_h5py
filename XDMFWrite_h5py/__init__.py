@@ -6,7 +6,9 @@ __version__ = '0.0.1'
 
 def ElementType():
     r'''
-Returns list with available ElementTypes
+Available ElementTypes.
+
+:return: List with available ElementTypes.
     '''
     return [
         'Polyvertex',
@@ -17,7 +19,9 @@ Returns list with available ElementTypes
 
 def AttributeCenter():
     r'''
-Returns list with available AttributeCenters
+Available AttributeCenters.
+
+:return: list with available AttributeCenters.
     '''
     return [
         'Cell',
@@ -26,19 +30,11 @@ Returns list with available AttributeCenters
 
 def Geometry(file, dataset):
     r'''
-Interpret a DataSet as a Geometry (a.k.a. nodal-coordinates or vertices).
+Interpret a DataSet as a Geometry (alias: nodal-coordinates, vertices).
 
-:arguments:
-
-    **file** (``<h5py.File>``)
-        An open and readable h5py file.
-
-    **dataset** (``<str>``)
-        Path to the DataSet.
-
-:returns:
-
-    Sequence of strings to be used in an XDMF-file.
+:param h5py.File file: An open and readable h5py file.
+:param str dataset: Path to the DataSet.
+:return: Sequence of strings to be used in an XDMF-file.
     '''
     ret = []
     shape = file[dataset].shape
@@ -66,22 +62,12 @@ Interpret a DataSet as a Geometry (a.k.a. nodal-coordinates or vertices).
 
 def Topology(file, dataset, typename):
     r'''
-Interpret a DataSet as a Topology (a.k.a. connectivity).
+Interpret a DataSet as a Topology (alias: connectivity).
 
-:arguments:
-
-    **file** (``<h5py.File>``)
-        An open and readable h5py file.
-
-    **dataset** (``<str>``)
-        Path to the DataSet.
-
-    **typename** (``<str>``)
-        Element-type (see ElementType).
-
-:returns:
-
-    Sequence of strings to be used in an XDMF-file.
+:param h5py.File file: An open and readable h5py file.
+:param str dataset: Path to the DataSet.
+:param str typename: Element-type (see ElementType).
+:return: Sequence of strings to be used in an XDMF-file.
     '''
     ret = []
     shape = file[dataset].shape
@@ -107,25 +93,11 @@ def Attribute(file, dataset, center, name=None):
     r'''
 Interpret a DataSet as an Attribute.
 
-:arguments:
-
-    **file** (``<h5py.File>``)
-        An open and readable h5py file.
-
-    **dataset** (``<str>``)
-        Path to the DataSet.
-
-    **center** (``<str>``)
-        How to center the Attribute (see AttributeCenter).
-
-:options:
-
-    **name** (``<str>``)
-        Name to use in the XDMF-file. By default the path of the DataSet is used.
-
-:returns:
-
-    Sequence of strings to be used in an XDMF-file.
+:param h5py.File file: An open and readable h5py file.
+:param str dataset: Path to the DataSet.
+:param str center: How to center the Attribute (see AttributeCenter).
+:param str name: Name to use in the XDMF-file. By default the path of the DataSet is used.
+:return: Sequence of strings to be used in an XDMF-file.
     '''
     if name is None:
         name = dataset
@@ -161,19 +133,10 @@ def Grid(*args, name='Grid'):
     r'''
 Combine fields (e.g. Geometry, Topology, and Attribute) to a single grid.
 
-:arguments:
-
-    **args** (``<list<str>>``)
-        The fields (themselves a sequence of strings) to write.
-
-:options:
-
-    **name** ([``'Grid'``] | ``<str>``)
-        Name of the grid.
-
-:returns:
-
-    Sequence of strings to be used in an XDMF-file.
+:type args: List of strings
+:param args: The fields (themselves a sequence of strings) to write.
+:param str name: Name of the grid.
+:return: Sequence of strings to be used in an XDMF-file.
     '''
     ret = []
     ret += [
@@ -203,18 +166,10 @@ Combine a series of fields (e.g. Geometry, Topology, and Attribute) to a time-se
         r'''
 Add a time-step given by a combination of fields (e.g. Geometry, Topology, and Attribute).
 
-:arguments:
-
-    **args** (``<list<str>>``)
-        The fields (themselves a sequence of strings) to write.
-
-:options:
-
-    **name** (``<str>``)
-        Name of the increment.
-
-    **t** (``<str>``)
-        Time value of the increment.
+:type args: List of strings
+:param args: The fields (themselves a sequence of strings) to write.
+:param str name: Name of the increment.
+:param str t: Time value of the increment.
         '''
         if name is None:
             name = "Increment " + str(self.n)
@@ -236,9 +191,7 @@ Add a time-step given by a combination of fields (e.g. Geometry, Topology, and A
         r'''
 Get sequence of strings to be used in an XDMF-file.
 
-:returns:
-
-    Sequence of strings to be used in an XDMF-file.
+:return: Sequence of strings to be used in an XDMF-file.
         '''
         ret = []
         ret += [
@@ -255,20 +208,12 @@ Interpret a DataSets as a Structured (individual points). This is simply short f
 concatenation of ``Geometry(file, "/coor")`` and
 ``Topology(file, "/conn", ElementType::Polyvertex)``.
 
-:arguments:
+:param h5py.File file: An open and readable h5py file.
+:param str dataset_geometry: Path to the Geometry DataSet.
+:param str dataset_topology:
+    Path to a mock Topology ``numpy.arange(N)``, with ``N`` the number of nodes (vertices).
 
-    **file** (``<h5py.File>``)
-        An open and readable h5py file.
-
-    **dataset_geometry** (``<str>``)
-        Path to the Geometry DataSet.
-
-    **dataset_topology** (``<str>``)
-        Path to a mock Topology arange(N), with N the number of nodes (vertices).
-
-:returns:
-
-    Sequence of strings to be used in an XDMF-file.
+:return: Sequence of strings to be used in an XDMF-file.
     '''
     shape_geometry = file[dataset_geometry].shape
     shape_topology = file[dataset_topology].shape
@@ -285,23 +230,11 @@ Interpret a DataSets as a Unstructured
 concatenation of ``Geometry(file, "/coor")`` and
 ``Topology(file, "/conn", typename)``.
 
-:arguments:
-
-    **file** (``<h5py.File>``)
-        An open and readable h5py file.
-
-    **dataset_geometry** (``<str>``)
-        Path to the Geometry DataSet.
-
-    **dataset_topology** (``<str>``)
-        Path to a mock Topology arange(N), with N the number of nodes (vertices).
-
-    **typename** (``<str>``)
-        Element-type (see ElementType).
-
-:returns:
-
-    Sequence of strings to be used in an XDMF-file.
+:param h5py.File file: An open and readable h5py file.
+:param str dataset_geometry: Path to the Geometry DataSet.
+:param str dataset_topology: Path to a mock Topology arange(N), with N the number of nodes (vertices).
+:param str typename: Element-type (see ElementType).
+:return: Sequence of strings to be used in an XDMF-file.
     '''
     return Geometry(file, dataset_geometry) + Topology(file, dataset_topology, typename)
 
@@ -310,15 +243,9 @@ def write(arg, filename=None):
     r'''
 Write a complete XDMF-file, e.g. from Grid or TimeSeries.
 
-:arguments:
-
-    **arg** (``<list<str>>``)
-        The data (any of the XDMFWrite_h5py-classes or a sequence of strings) to write.
-
-:options:
-
-    **filename** (``<str>``)
-        File to write to. Optional.
+:type args: List of strings
+:param args: The data (any of the XDMFWrite_h5py-classes or a sequence of strings) to write.
+:param str filename: File to write to. Optional.
     '''
     ret = []
     try:

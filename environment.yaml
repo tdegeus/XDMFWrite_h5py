@@ -1,7 +1,7 @@
 channels:
-  - conda-forge
+- conda-forge
 dependencies:
-  - python
-  - setuptools_scm
-  - numpy
-  - h5py
+- python
+- setuptools_scm
+- numpy
+- h5py

@@ -32,22 +32,22 @@ Interpret a DataSet as a Geometry (a.k.a. nodal-coordinates or vertices).
 
 Interpret a DataSet as a Topology (a.k.a. connectivity).
 
-### Attribute 
+### Attribute
 
-Interpret a DataSet as an Attribute. 
+Interpret a DataSet as an Attribute.
 
 ## Short-hand
 
 ### Unstructured
 
-Interpret a DataSets as Unstructured. 
+Interpret a DataSets as Unstructured.
 The call
 
 ```python
 Structured(file, "/path/to/geometry", "/path/to/topology", typename)
 ```
 
-Is simply short for 
+Is simply short for
 
 ```python
 Geometry(file, "/path/to/geometry") +
@@ -56,7 +56,7 @@ Topology(file, "/path/to/topology", typename)
 
 ### Structured
 
-Interpret a DataSets as Structured (individual points). 
+Interpret a DataSets as Structured (individual points).
 Use is made of a mock Topology `arange(N)`, with `N` the number of nodes (vertices).
 The call
 
@@ -64,7 +64,7 @@ The call
 Structured(file, "/path/to/geometry", "/path/to/topology");
 ```
 
-Is simply short for 
+Is simply short for
 
 ```python
 Geometry(file, "/path/to/geometry") +
@@ -88,7 +88,7 @@ series.push_back(...)
 series.push_back(...)
 ```
 
-To then write a file simply pass `series` to `write`. 
+To then write a file simply pass `series` to `write`.
 To alternatively get the sequence of strings of TimeSeries use `series.get()`.
 
 ## Output

@@ -279,6 +279,7 @@ Write a complete XDMF-file, e.g. from Grid or TimeSeries.
     ret = '\n'.join(ret)
 
     if filename is not None:
-        open(filename, 'w').write(ret)
+        with open(filename, 'w') as file:
+            file.write(ret)
 
     return ret

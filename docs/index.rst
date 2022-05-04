@@ -18,6 +18,7 @@ Contents
    :maxdepth: 1
 
    module.rst
+   examples/readme.rst
 
 Indices and tables
 ==================

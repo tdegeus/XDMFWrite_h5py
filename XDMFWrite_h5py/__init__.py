@@ -277,7 +277,7 @@ def Unstructured(
     return Geometry(file, dataset_geometry) + Topology(file, dataset_topology, typename)
 
 
-def write(*args: list[str], filename: str = None):
+def write(arg: list[str], filename: str = None):
     r"""
     Write a complete XDMF-file, for example from Grid or TimeSeries.
 
@@ -285,11 +285,18 @@ def write(*args: list[str], filename: str = None):
     :param args: The data (any of the XDMFWrite_h5py-classes or a sequence of strings) to write.
     :param str filename: File to write to. Optional.
     """
+
+    if isinstance(arg, TimeSeries):
+        lines = arg.get()
+    elif isinstance(arg, str):
+        lines = [arg]
+    else:
+        lines = arg
+
     ret = []
     ret += ['<Xdmf Version="3.0">']
     ret += ["<Domain>"]
-    for arg in args:
-        ret += arg
+    ret += lines
     ret += ["</Domain>"]
     ret += ["</Xdmf>"]
     ret = minidom.parseString("\n".join(ret)).toprettyxml(newl="")

@@ -1,7 +1,11 @@
+import pathlib
+
 import h5py
 import numpy as np
 
 import XDMFWrite_h5py as xh
+
+root = pathlib.Path(__file__).parent / pathlib.Path(__file__).stem
 
 coor = np.array(
     [
@@ -23,15 +27,11 @@ conn = np.array(
 
 stress = np.array([1.0, 2.0])
 
-with h5py.File("grid_unstructured.h5", "w") as file:
+with h5py.File(root.with_suffix(".h5"), "w") as file, xh.Grid(root.with_suffix(".xdmf")) as xdmf:
 
-    file["/coor"] = coor
-    file["/conn"] = conn
-    file["/stress"] = stress
+    file["coor"] = coor
+    file["conn"] = conn
+    file["stress"] = stress
 
-    grid = xh.Grid(
-        xh.Unstructured(file, "/coor", "/conn", "Quadrilateral"),
-        xh.Attribute(file, "/stress", "Cell"),
-    )
-
-    xh.write(grid, "grid_unstructured.xdmf")
+    xdmf += xh.Unstructured(file["coor"], file["conn"], "Quadrilateral")
+    xdmf += xh.Attribute(file["stress"], "Cell")

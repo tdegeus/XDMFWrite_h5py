@@ -1,3 +1,6 @@
+import os
+import pathlib
+from enum import StrEnum
 from xml.dom import minidom
 
 import h5py
@@ -7,28 +10,48 @@ from numpy.typing import ArrayLike
 from ._version import version  # noqa: F401
 
 
-def is_correct_shape(shape: ArrayLike, typename: str) -> bool:
+class ElementType(StrEnum):
+    """
+    Element types.
+    """
+
+    Polyvertex = "Polyvertex"
+    Triangle = "Triangle"
+    Quadrilateral = "Quadrilateral"
+    Hexahedron = "Hexahedron"
+
+
+class AttributeCenter(StrEnum):
+    """
+    Attribute centers.
+    """
+
+    Cell = "Cell"
+    Node = "Node"
+
+
+def shape_is_correct(shape: ArrayLike, element_type: ElementType) -> bool:
     """
     Check that a shape matches the expected shape for a certain type.
 
     :param shape: Shape of a dataset.
-    :param str typename: Element-type (see :py:func:`ElementType`).
-    :return: Boolean.
+    :param element_type: Element-type (see :py:class:`ElementType`).
+    :return: `True` is the shape is as expected (no guarantee that the data is correct).
     """
 
-    if len(shape) == 1 and typename == "Polyvertex":
+    if len(shape) == 1 and element_type == ElementType.Polyvertex:
         return True
 
     if len(shape) != 2:
         return False
 
-    if shape[1] == 3 and typename == "Triangle":
+    if shape[1] == 3 and element_type == ElementType.Triangle:
         return True
 
-    if shape[1] == 4 and typename == "Quadrilateral":
+    if shape[1] == 4 and element_type == ElementType.Quadrilateral:
         return True
 
-    if shape[1] == 8 and typename == "Hexahedron":
+    if shape[1] == 8 and element_type == ElementType.Hexahedron:
         return True
 
     return False
@@ -52,257 +75,373 @@ def as3d(arg: ArrayLike) -> ArrayLike:
     return ret
 
 
-def ElementType() -> list[str]:
-    r"""
-    Available ElementTypes.
-
-    :return: List with available ElementTypes.
+class Field:
     """
-    return ["Polyvertex", "Triangle", "Quadrilateral", "Hexahedron"]
-
-
-def AttributeCenter() -> list[str]:
-    r"""
-    Available AttributeCenters.
-
-    :return: list with available AttributeCenters.
-    """
-    return ["Cell", "Node"]
-
-
-def Geometry(file: h5py.File, dataset: str) -> list[str]:
-    r"""
-    Interpret a dataset as a Geometry (aka nodal-coordinates / vertices).
-
-    :param h5py.File file: An open and readable h5py file.
-    :param str dataset: Path to the dataset.
-    :return: Relevant XDMF code bit (see :py:func:`write` to write as valid XDMF-file).
+    Base class of XDMF-fields.
     """
 
-    shape = file[dataset].shape
-    shape_str = " ".join(str(i) for i in shape)
-    fname = file.filename
-
-    assert len(shape) == 2
-
-    ret = []
-
-    if shape[1] == 1:
-        ret += ['<Geometry GeometryType="X">']
-    elif shape[1] == 2:
-        ret += ['<Geometry GeometryType="XY">']
-    elif shape[1] == 3:
-        ret += ['<Geometry GeometryType="XYZ">']
-    else:
-        raise OSError("Illegal number of dimensions.")
-
-    ret += [f'<DataItem Dimensions="{shape_str}" Format="HDF"> {fname}:{dataset} </DataItem>']
-    ret += ["</Geometry>"]
-
-    return ret
-
-
-def Topology(file: h5py.File, dataset: str, typename: str) -> list[str]:
-    r"""
-    Interpret a dataset as a Topology (aka connectivity).
-
-    :param h5py.File file: An open and readable h5py file.
-    :param str dataset: Path to the dataset.
-    :param str typename: Element-type (see :py:func:`ElementType`).
-    :return: Relevant XDMF code bit (see :py:func:`write` to write as valid XDMF-file).
-    """
-
-    shape = file[dataset].shape
-    shape_str = " ".join(str(i) for i in shape)
-    fname = file.filename
-
-    if not is_correct_shape(shape, typename):
-        raise OSError("Incorrect dimensions for type")
-
-    ret = []
-    ret += [f'<Topology NumberOfElements="{shape[0]:d}" TopologyType="{typename}">']
-    ret += [f'<DataItem Dimensions="{shape_str}" Format="HDF"> {fname}:{dataset} </DataItem>']
-    ret += ["</Topology>"]
-
-    return ret
-
-
-def Attribute(file: h5py.File, dataset: str, center: str, name: str = None) -> list[str]:
-    r"""
-    Interpret a dataset as an Attribute.
-
-    :param h5py.File file: An open and readable h5py file.
-    :param str dataset: Path to the dataset.
-    :param str center: How to center the Attribute (see :py:func:`AttributeCenter`).
-    :param str name: Name to use in the XDMF-file. By default the path of the dataset is used.
-    :return: Relevant XDMF code bit (see :py:func:`write` to write as valid XDMF-file).
-    """
-
-    if name is None:
-        name = dataset
-
-    shape = file[dataset].shape
-    shape_str = " ".join(str(i) for i in shape)
-    fname = file.filename
-
-    assert len(shape) > 0
-    assert len(shape) < 3
-
-    if len(shape) == 1:
-        t = "Scalar"
-    elif len(shape) == 2:
-        t = "Vector"
-    else:
-        raise OSError("Type of data cannot be deduced")
-
-    ret = []
-    ret += [f'<Attribute AttributeType="{t}" Center="{center}" Name="{name}">']
-    ret += [f'<DataItem Dimensions="{shape_str}" Format="HDF"> {fname}:{dataset} </DataItem>']
-    ret += ["</Attribute>"]
-
-    return ret
-
-
-def Grid(*args: list[str], name: str = "Grid") -> list[str]:
-    r"""
-    Combine fields (:py:func:`Geometry`, :py:func:`Topology`, and :py:func:`Attribute`)
-    to a single grid.
-
-    :type args: List of strings
-    :param args: The fields (themselves a sequence of strings) to write.
-    :param str name: Name of the grid.
-    :return: Relevant XDMF code bit (see :py:func:`write` to write as valid XDMF-file).
-    """
-
-    ret = []
-    ret += [f'<Grid CollectionType="Temporal" GridType="Collection" Name="{name}">']
-    ret += [f'<Grid Name="{name}">']
-    for arg in args:
-        ret += arg
-    ret += ["</Grid>"]
-    ret += ["</Grid>"]
-
-    return ret
-
-
-class TimeSeries:
-    r"""
-    Combine a series of fields (:py:func:`Geometry`, :py:func:`Topology`, and :py:func:`Attribute`)
-    to a time-series.
-    """
-
-    def __init__(self, name: str = "TimeSeries"):
+    def __init__(self, dataset: h5py.File, name: str):
         """
-        :param name: Name of the TimeSeries.
+        :param dataset: HDF5-dataset.
+        :param name: Name to use in the XDMF-file [default: same as dataset].
         """
 
+        self.filename = dataset.parent.file.filename
+        self.path = dataset.name
+        self.shape = dataset.shape
+        self.shape_str = " ".join(str(i) for i in self.shape)
         self.name = name
-        self.n = 0
-        self.lines = []
 
-    def push_back(self, *args: list[str], name: str = None, t: float = None):
-        r"""
-        Add a time-step given by a combination of fields
-        (:py:func:`Geometry`, :py:func:`Topology`, and :py:func:`Attribute`).
+        if self.name is None:
+            self.name = dataset.name
 
-        :type args: List of strings
-        :param args: The fields (themselves a sequence of strings) to write.
-        :param str name: Name of the increment.
-        :param str t: Time value of the increment.
+    def __iter__(self):
+        return iter(self.__list__())
+
+    def relpath(self, path: str | pathlib.Path) -> str:
         """
+        Change the path of the HDF5-file to a path relative to another file (the XDMF-file).
+        :param path: Path to make the file relative to.
+        """
+        self.filename = os.path.relpath(self.filename, pathlib.Path(path).parent)
 
-        if name is None:
-            name = "Increment " + str(self.n)
-        if t is None:
-            t = self.n
+    def __str__(self) -> str:
+        """
+        Return XML snippet.
+        """
+        return minidom.parseString("\n".join(self.__list__())).toprettyxml(newl="")
 
-        self.lines += [f'<Grid Name="{name}">']
-        self.lines += [f'<Time Value="{str(t)}"/>']
-        for arg in args:
-            self.lines += arg
-        self.lines += ["</Grid>"]
-        self.n += 1
 
-    def get(self) -> list[str]:
-        r"""
-        Get sequence of strings to be used in an XDMF-file.
+class Geometry(Field):
+    """
+    Interpret a dataset as a Geometry (aka nodal-coordinates / vertices).
+    """
 
-        :return: Relevant XDMF code bit (see :py:func:`write` to write as valid XDMF-file).
+    def __init__(self, dataset: h5py.Group):
+        """
+        :param dataset: The dataset.
+        """
+        super().__init__(dataset, "Geometry")
+        assert len(self.shape) == 2
+
+    def __list__(self) -> list[str]:
+        """
+        :return: XDMF code snippet.
         """
 
         ret = []
-        ret += [f'<Grid CollectionType="Temporal" GridType="Collection" Name="{self.name}">']
-        ret += self.lines
-        ret += ["</Grid>"]
+
+        if self.shape[1] == 1:
+            ret += ['<Geometry GeometryType="X">']
+        elif self.shape[1] == 2:
+            ret += ['<Geometry GeometryType="XY">']
+        elif self.shape[1] == 3:
+            ret += ['<Geometry GeometryType="XYZ">']
+        else:
+            raise OSError("Illegal number of dimensions.")
+
+        ret += [
+            (
+                f'<DataItem Dimensions="{self.shape_str}" Format="HDF"> '
+                f"{self.filename}:{self.path} </DataItem>"
+            )
+        ]
+        ret += ["</Geometry>"]
+
         return ret
 
 
-def Structured(file: h5py.File, dataset_geometry: str, dataset_topology: str) -> list[str]:
-    r"""
-    Interpret DataSets as a Structured (individual points).
-    This is simply short for the concatenation of ``Geometry(file, "/coor")`` and
-    ``Topology(file, "/conn", ElementType::Polyvertex)``.
-
-    :param h5py.File file: An open and readable h5py file.
-    :param str dataset_geometry: Path to the Geometry dataset.
-    :param str dataset_topology:
-        Path to a mock Topology ``numpy.arange(N)``, with ``N`` the number of nodes (vertices).
-
-    :return: Relevant XDMF code bit (see :py:func:`write` to write as valid XDMF-file).
+class Topology(Field):
+    """
+    Interpret a dataset as a Topology (aka connectivity).
     """
 
-    shape_geometry = file[dataset_geometry].shape
-    shape_topology = file[dataset_topology].shape
+    def __init__(self, dataset: h5py.Group, element_type: ElementType):
+        """
+        :param dataset: Dataset.
+        :param element_type: Element-type (see :py:class:`ElementType`).
+        """
+        super().__init__(dataset, "Topology")
+        self.element_type = element_type
 
-    assert shape_geometry[0] == shape_topology[0]
+        if not shape_is_correct(self.shape, self.element_type):
+            raise OSError("Incorrect dimensions for type")
 
-    return Geometry(file, dataset_geometry) + Topology(file, dataset_topology, "Polyvertex")
+    def __list__(self) -> list[str]:
+        """
+        :return: XDMF code snippet.
+        """
+
+        ret = []
+        ret += [
+            f'<Topology NumberOfElements="{self.shape[0]:d}" TopologyType="{self.element_type}">'
+        ]
+        ret += [
+            (
+                f'<DataItem Dimensions="{self.shape_str}" Format="HDF"> '
+                f"{self.filename}:{self.path} </DataItem>"
+            )
+        ]
+        ret += ["</Topology>"]
+
+        return ret
 
 
-def Unstructured(
-    file: h5py.File, dataset_geometry: str, dataset_topology: str, typename: str
-) -> list[str]:
-    r"""
-    Interpret DataSets as a Unstructured
-    (Geometry and Topology, aka nodal-coordinates and connectivity). This is simply short for the
-    concatenation of ``Geometry(file, "/coor")`` and
-    ``Topology(file, "/conn", typename)``.
-
-    :param h5py.File file: An open and readable h5py file.
-    :param str dataset_geometry: Path to the Geometry dataset.
-    :param str dataset_topology: Path to a mock Topology == arange(N), N = #nodes (vertices).
-    :param str typename: Element-type (see :py:func:`ElementType`).
-    :return: Relevant XDMF code bit (see :py:func:`write` to write as valid XDMF-file).
+class Attribute(Field):
     """
-    return Geometry(file, dataset_geometry) + Topology(file, dataset_topology, typename)
-
-
-def write(arg: list[str], filename: str = None):
-    r"""
-    Write a complete XDMF-file, for example from Grid or TimeSeries.
-
-    :type args: List of strings
-    :param args: The data (any of the XDMFWrite_h5py-classes or a sequence of strings) to write.
-    :param str filename: File to write to. Optional.
+    Interpret a dataset as an Attribute.
     """
 
-    if isinstance(arg, TimeSeries):
-        lines = arg.get()
-    elif isinstance(arg, str):
-        lines = [arg]
-    else:
-        lines = arg
+    def __init__(self, dataset: h5py.File, center: str, name: str = None):
+        """
+        :param dataset: Dataset.
+        :param center: How to center the Attribute (see :py:class:`AttributeCenter`).
+        :param name: Name to use in the XDMF-file [default: same as dataset]
+        """
+        super().__init__(dataset, name)
+        self.center = center
+        assert len(self.shape) > 0
+        assert len(self.shape) < 3
 
+    def __list__(self) -> list[str]:
+        """
+        :return: XDMF code snippet.
+        """
+
+        if len(self.shape) == 1:
+            t = "Scalar"
+        elif len(self.shape) == 2:
+            t = "Vector"
+        else:
+            raise OSError("Type of data cannot be deduced")
+
+        ret = []
+        ret += [f'<Attribute AttributeType="{t}" Center="{self.center}" Name="{self.name}">']
+        ret += [
+            (
+                f'<DataItem Dimensions="{self.shape_str}" Format="HDF"> '
+                f"{self.filename}:{self.path} </DataItem>"
+            )
+        ]
+        ret += ["</Attribute>"]
+
+        return ret
+
+
+def _asfile(lines: list[str]) -> str:
+    """
+    Convert a list of lines to an XDMF-file.
+    :param lines: List of lines.
+    :return: XDMF-file.
+    """
     ret = []
     ret += ['<Xdmf Version="3.0">']
     ret += ["<Domain>"]
     ret += lines
     ret += ["</Domain>"]
     ret += ["</Xdmf>"]
-    ret = minidom.parseString("\n".join(ret)).toprettyxml(newl="")
-
-    if filename is not None:
-        with open(filename, "w") as file:
-            file.write(ret)
-
     return ret
+
+
+class File:
+    """
+    Base class of XDMF-files.
+    The class allows (requires) to open the file in context-manager mode.
+    """
+
+    def __init__(self, filename: str, mode: str = "w"):
+        """
+        :param filename: Filename of the XDMF-file.
+        :param mode: Write mode.
+        """
+        self.filename = filename
+        self.mode = mode
+        self.lines = []
+
+    def __iter__(self):
+        return iter(self.__list__())
+
+    def __str__(self) -> str:
+        return minidom.parseString("\n".join(self.__list__())).toprettyxml(newl="")
+
+    def __list__(self) -> list[str]:
+        return _asfile(self.lines)
+
+    def __add__(self, content: Field | list[str] | str):
+        """
+        Add content to file.
+        :param content: Content to add.
+        """
+
+        if isinstance(content, list):
+            self.lines += content
+            return self
+
+        if isinstance(content, Field):
+            content.relpath(self.filename)  # todo: operation that does not modify "content"
+            self.lines += list(content)
+            return self
+
+        self.lines += [content]
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        with open(self.filename, self.mode) as file:
+            file.write(str(self))
+
+
+class TimeStep:
+    """
+    Mark a time-step in a :py:class:`TimeSeries`.
+    """
+
+    def __init__(self, name: str = None, time: float = None):
+        """
+        :param name: Name of the time step.
+        :param time: Value of time
+        """
+        self.name = name
+        self.time = time
+
+
+class Grid(File):
+    """
+    File from :py:class:`Geometry`, :py:class:`Topology`, and :py:class:`Attribute`.
+    """
+
+    def __init__(self, filename: str, mode: str = "w", name: str = "Grid"):
+        """
+        :param filename: Filename of the XDMF-file.
+        :param mode: Write mode.
+        :param name: Name of the grid.
+        """
+        super().__init__(filename, mode)
+        self.name = name
+
+    def __list__(self) -> list[str]:
+
+        ret = []
+        ret += [f'<Grid CollectionType="Temporal" GridType="Collection" Name="{self.name}">']
+        ret += [f'<Grid Name="{self.name}">']
+        ret += self.lines
+        ret += ["</Grid>"]
+        ret += ["</Grid>"]
+
+        return _asfile(ret)
+
+
+class TimeSeries(File):
+    r"""
+    File from a series of time steps, each with :py:class:`Geometry`, :py:class:`Topology`,
+    and :py:class:`Attribute`.
+    """
+
+    def __init__(self, filename: str, mode: str = "w", name: str = "TimeSeries"):
+        """
+        :param name: Name of the TimeSeries.
+        """
+        super().__init__(filename, mode)
+        self.name = name
+        self.start = []
+        self.settings = []
+
+    def __add__(self, other: TimeStep | Field | list[str] | str):
+
+        if isinstance(other, TimeStep):
+            self.start += [len(self.lines)]
+            self.settings += [other]
+            return self
+
+        super().__add__(other)
+        return self
+
+    def __list__(self) -> list[str]:
+
+        ret = []
+        ret += [f'<Grid CollectionType="Temporal" GridType="Collection" Name="{self.name}">']
+
+        start = [i for i in self.start] + [len(self.lines)]
+
+        for i in range(len(self.start)):
+
+            if self.settings[i].name is None:
+                name = f"Increment {i:d}"
+            else:
+                name = self.settings[i].name
+
+            if self.settings[i].time is None:
+                t = i
+            else:
+                t = self.settings[i].time
+
+            ret += [f'<Grid Name="{name}">']
+            ret += [f'<Time Value="{str(t)}"/>']
+            ret += self.lines[start[i] : start[i + 1]]  # noqa: E203
+            ret += ["</Grid>"]
+
+        ret += ["</Grid>"]
+        return _asfile(ret)
+
+
+class _Grid(Field):
+    """
+    Base class for a grid.
+    """
+
+    def __init__(
+        self, dataset_geometry: h5py.Group, dataset_topology: h5py.Group, element_type: ElementType
+    ):
+        self.geometry = Geometry(dataset_geometry)
+        self.topology = Topology(dataset_topology, element_type)
+
+    def __iter__(self):
+        return iter(self.__list__())
+
+    def relpath(self, path: str | pathlib.Path):
+        self.geometry.relpath(path)
+        self.topology.relpath(path)
+
+    def __list__(self) -> list[str]:
+        return list(self.geometry) + list(self.topology)
+
+
+class Structured(_Grid):
+    """
+    Interpret DataSets as a Structured (individual points).
+    Short for the concatenation of:
+
+    -   ``Geometry(file["coor"])``
+    -   ``Topology(file["conn"], ElementType.Polyvertex)``.
+    """
+
+    def __init__(self, dataset_geometry: h5py.Group, dataset_topology: h5py.Group):
+        """
+        :param dataset_geometry: Geometry dataset.
+        :param dataset_topology:
+            Mock Topology ``numpy.arange(N)``, with ``N`` the number of nodes (vertices).
+        """
+        super().__init__(dataset_geometry, dataset_topology, ElementType.Polyvertex)
+
+
+class Unstructured(_Grid):
+    """
+    Interpret DataSets as a Unstructured
+    (Geometry and Topology, aka nodal-coordinates and connectivity).
+    Short for the concatenation of:
+
+    -   ``Geometry(file["coor"])``
+    -   ``Topology(file["conn"], element_type)``.
+    """
+
+    def __init__(
+        self, dataset_geometry: h5py.Group, dataset_topology: h5py.Group, element_type: ElementType
+    ):
+        """
+        :param dataset_geometry: Path to the Geometry dataset.
+        :param dataset_topology: Path to the Topology dataset.
+        :param element_type: Element-type (see :py:class:`ElementType`).
+        """
+        super().__init__(dataset_geometry, dataset_topology, element_type)

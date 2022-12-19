@@ -1,7 +1,11 @@
+import pathlib
+
 import h5py
 import numpy as np
 
 import XDMFWrite_h5py as xh
+
+root = pathlib.Path(__file__).parent / pathlib.Path(__file__).stem
 
 coor = np.array(
     [
@@ -34,23 +38,20 @@ disp = np.array(
 
 stress = np.array([1.0, 2.0])
 
-with h5py.File("timeseries.h5", "w") as file:
+file_hdf5 = root.with_suffix(".h5")
+file_xdmf = root.with_suffix(".xdmf")
 
-    file["/coor"] = coor
-    file["/conn"] = conn
+with h5py.File(file_hdf5, "w") as file, xh.TimeSeries(file_xdmf) as xdmf:
 
-    series = xh.TimeSeries()
+    file["coor"] = coor
+    file["conn"] = conn
 
     for i in range(4):
 
         file[f"/stress/{i:d}"] = float(i) * stress
         file[f"/disp/{i:d}"] = float(i) * xh.as3d(disp)
 
-        # It is important that fields have the same name for the entire time series
-        series.push_back(
-            xh.Unstructured(file, "/coor", "/conn", "Quadrilateral"),
-            xh.Attribute(file, f"/disp/{i:d}", "Node", name="Displacement"),
-            xh.Attribute(file, f"/stress/{i:d}", "Cell", name="Stress"),
-        )
-
-    xh.write(series, "timeseries.xdmf")
+        xdmf += xh.TimeStep()
+        xdmf += xh.Unstructured(file["coor"], file["conn"], xh.ElementType.Quadrilateral)
+        xdmf += xh.Attribute(file[f"/disp/{i:d}"], xh.AttributeCenter.Node, name="Displacement")
+        xdmf += xh.Attribute(file[f"/stress/{i:d}"], xh.AttributeCenter.Cell, name="Stress")

@@ -6,39 +6,41 @@ Python module
 Overview
 ========
 
-Available types
----------------
+Grids ('XDMF files')
+--------------------
 
 .. autosummary::
 
-  XDMFWrite_h5py.ElementType
-  XDMFWrite_h5py.AttributeCenter
+    XDMFWrite_h5py.Grid
+    XDMFWrite_h5py.TimeSeries
 
-Fields
-------
 
-.. autosummary::
-
-  XDMFWrite_h5py.Geometry
-  XDMFWrite_h5py.Topology
-  XDMFWrite_h5py.Attribute
-
-Grids
------
+Fields ('fields')
+-----------------
 
 .. autosummary::
 
-  XDMFWrite_h5py.Grid
-  XDMFWrite_h5py.TimeSeries
-  XDMFWrite_h5py.Structured
-  XDMFWrite_h5py.Unstructured
+    XDMFWrite_h5py.Geometry
+    XDMFWrite_h5py.Topology
+    XDMFWrite_h5py.Attribute
+    XDMFWrite_h5py.Structured
+    XDMFWrite_h5py.Unstructured
+    XDMFWrite_h5py.TimeStep
 
-Export
-------
+Types ('field properties')
+--------------------------
 
 .. autosummary::
 
-  XDMFWrite_h5py.write
+    XDMFWrite_h5py.ElementType
+    XDMFWrite_h5py.AttributeCenter
+
+Support functions
+-----------------
+
+.. autosummary::
+
+    XDMFWrite_h5py.as3d
 
 Documentation
 =============

@@ -12,7 +12,12 @@ from ._version import version  # noqa: F401
 
 class ElementType(StrEnum):
     """
-    Element types.
+    Element types:
+
+    -   Polyvertex
+    -   Triangle
+    -   Quadrilateral
+    -   Hexahedron
     """
 
     Polyvertex = "Polyvertex"
@@ -23,7 +28,10 @@ class ElementType(StrEnum):
 
 class AttributeCenter(StrEnum):
     """
-    Attribute centers.
+    Attribute centers:
+
+    -   Cell
+    -   Node
     """
 
     Cell = "Cell"
@@ -78,13 +86,12 @@ def as3d(arg: ArrayLike) -> ArrayLike:
 class Field:
     """
     Base class of XDMF-fields.
+
+    :param dataset: HDF5-dataset.
+    :param name: Name to use in the XDMF-file [default: same as dataset].
     """
 
     def __init__(self, dataset: h5py.File, name: str):
-        """
-        :param dataset: HDF5-dataset.
-        :param name: Name to use in the XDMF-file [default: same as dataset].
-        """
 
         self.filename = dataset.parent.file.filename
         self.path = dataset.name
@@ -115,12 +122,11 @@ class Field:
 class Geometry(Field):
     """
     Interpret a dataset as a Geometry (aka nodal-coordinates / vertices).
+
+    :param dataset: The dataset.
     """
 
     def __init__(self, dataset: h5py.Group):
-        """
-        :param dataset: The dataset.
-        """
         super().__init__(dataset, "Geometry")
         assert len(self.shape) == 2
 
@@ -154,13 +160,12 @@ class Geometry(Field):
 class Topology(Field):
     """
     Interpret a dataset as a Topology (aka connectivity).
+
+    :param dataset: Dataset.
+    :param element_type: Element-type (see :py:class:`ElementType`).
     """
 
     def __init__(self, dataset: h5py.Group, element_type: ElementType):
-        """
-        :param dataset: Dataset.
-        :param element_type: Element-type (see :py:class:`ElementType`).
-        """
         super().__init__(dataset, "Topology")
         self.element_type = element_type
 
@@ -190,14 +195,13 @@ class Topology(Field):
 class Attribute(Field):
     """
     Interpret a dataset as an Attribute.
+
+    :param dataset: Dataset.
+    :param center: How to center the Attribute (see :py:class:`AttributeCenter`).
+    :param name: Name to use in the XDMF-file [default: same as dataset]
     """
 
     def __init__(self, dataset: h5py.File, center: str, name: str = None):
-        """
-        :param dataset: Dataset.
-        :param center: How to center the Attribute (see :py:class:`AttributeCenter`).
-        :param name: Name to use in the XDMF-file [default: same as dataset]
-        """
         super().__init__(dataset, name)
         self.center = center
         assert len(self.shape) > 0
@@ -247,13 +251,12 @@ class File:
     """
     Base class of XDMF-files.
     The class allows (requires) to open the file in context-manager mode.
+
+    :param filename: Filename of the XDMF-file.
+    :param mode: Write mode.
     """
 
     def __init__(self, filename: str, mode: str = "w"):
-        """
-        :param filename: Filename of the XDMF-file.
-        :param mode: Write mode.
-        """
         self.filename = filename
         self.mode = mode
         self.lines = []
@@ -296,28 +299,34 @@ class File:
 class TimeStep:
     """
     Mark a time-step in a :py:class:`TimeSeries`.
+
+    :param name: Name of the time step.
+    :param time: Value of time
     """
 
     def __init__(self, name: str = None, time: float = None):
-        """
-        :param name: Name of the time step.
-        :param time: Value of time
-        """
         self.name = name
         self.time = time
 
 
 class Grid(File):
     """
-    File from :py:class:`Geometry`, :py:class:`Topology`, and :py:class:`Attribute`.
+    XDMF-file with one grid. The grid can contain:
+
+    -   :py:class:`Geometry`.
+    -   :py:class:`Topology`.
+    -   :py:class:`Attribute`.
+    -   :py:class:`Structured`.
+    -   :py:class:`Unstructured`.
+
+    See :py:class:`Structured` or :py:class:`Unstructured` for suggested usage.
+
+    :param filename: Filename of the XDMF-file.
+    :param mode: Write mode.
+    :param name: Name of the grid.
     """
 
     def __init__(self, filename: str, mode: str = "w", name: str = "Grid"):
-        """
-        :param filename: Filename of the XDMF-file.
-        :param mode: Write mode.
-        :param name: Name of the grid.
-        """
         super().__init__(filename, mode)
         self.name = name
 
@@ -335,14 +344,36 @@ class Grid(File):
 
 class TimeSeries(File):
     r"""
-    File from a series of time steps, each with :py:class:`Geometry`, :py:class:`Topology`,
-    and :py:class:`Attribute`.
+    XDMF-file with a series of 'time-steps' of grids, separated by :py:class:`TimeStep`.
+    The grid can contain:
+
+    -   :py:class:`Geometry`.
+    -   :py:class:`Topology`.
+    -   :py:class:`Attribute`.
+    -   :py:class:`Structured`.
+    -   :py:class:`Unstructured`.
+
+    Usage::
+
+        with h5py.File("my.h5", "w") as file, xh.TimeSeries("my.xdmf") as xdmf:
+
+            file["coor"] = coor
+            file["conn"] = conn
+
+            for i in range(4):
+
+                file[f"/stress/{i:d}"] = float(i) * stress
+                file[f"/disp/{i:d}"] = float(i) * xh.as3d(disp)
+
+                xdmf += xh.TimeStep()
+                xdmf += xh.Unstructured(file["coor"], file["conn"], xh.ElementType.Quadrilateral)
+                xdmf += xh.Attribute(file[f"/disp/{i:d}"], xh.AttributeCenter.Node, name="Disp")
+                xdmf += xh.Attribute(file[f"/stress/{i:d}"], xh.AttributeCenter.Cell, name="Stress")
+
+    :param name: Name of the TimeSeries.
     """
 
     def __init__(self, filename: str, mode: str = "w", name: str = "TimeSeries"):
-        """
-        :param name: Name of the TimeSeries.
-        """
         super().__init__(filename, mode)
         self.name = name
         self.start = []
@@ -415,14 +446,23 @@ class Structured(_Grid):
 
     -   ``Geometry(file["coor"])``
     -   ``Topology(file["conn"], ElementType.Polyvertex)``.
+
+    Usage::
+
+        with h5py.File("my.h5", "w") as file, xh.Grid("my.xdmf") as xdmf:
+
+            file["coor"] = coor
+            file["conn"] = conn
+            file["radius"] = radius
+
+            xdmf += xh.Structured(file["coor"], file["conn"])
+            xdmf += xh.Attribute(file["radius"], "Node")
+
+    :param dataset_geometry: Geometry dataset.
+    :param dataset_topology: Mock Topology ``numpy.arange(N)``, ``N`` = number of nodes (vertices).
     """
 
     def __init__(self, dataset_geometry: h5py.Group, dataset_topology: h5py.Group):
-        """
-        :param dataset_geometry: Geometry dataset.
-        :param dataset_topology:
-            Mock Topology ``numpy.arange(N)``, with ``N`` the number of nodes (vertices).
-        """
         super().__init__(dataset_geometry, dataset_topology, ElementType.Polyvertex)
 
 
@@ -434,14 +474,24 @@ class Unstructured(_Grid):
 
     -   ``Geometry(file["coor"])``
     -   ``Topology(file["conn"], element_type)``.
+
+    Usage::
+
+        with h5py.File("my.h5", "w") as file, xh.Unstructured("my.xdmf") as xdmf:
+
+            file["coor"] = coor
+            file["conn"] = conn
+            file["stress"] = stress
+
+            xdmf += xh.Unstructured(file["coor"], file["conn"], "Quadrilateral")
+            xdmf += xh.Attribute(file["stress"], "Cell")
+
+    :param dataset_geometry: Path to the Geometry dataset.
+    :param dataset_topology: Path to the Topology dataset.
+    :param element_type: Element-type (see :py:class:`ElementType`).
     """
 
     def __init__(
         self, dataset_geometry: h5py.Group, dataset_topology: h5py.Group, element_type: ElementType
     ):
-        """
-        :param dataset_geometry: Path to the Geometry dataset.
-        :param dataset_topology: Path to the Topology dataset.
-        :param element_type: Element-type (see :py:class:`ElementType`).
-        """
         super().__init__(dataset_geometry, dataset_topology, element_type)
